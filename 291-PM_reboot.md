@@ -712,7 +712,7 @@ dge$ensembl_gene_id = substr(rownames(dge), 1, 15)
 both_res = merge(dge, meta, by='ensembl_gene_id', all.x=F, all.y=F)
 
 corrs = list()
-disorders = c('ASD', 'SCZ', 'BD', 'MDD', 'AAD')
+disorders = c('ASD', 'SCZ', 'BD', 'MDD')
 for (d in disorders) {
     cat(d, '\n')
     corrs[[d]] = do_boot_corrs(both_res, sprintf('%s.beta_log2FC', d), met)
@@ -732,7 +732,7 @@ dge = as.data.frame(results(dds.Caudate, name = "Diagnosis_Case_vs_Control"))
 dge$ensembl_gene_id = substr(rownames(dge), 1, 15)
 both_res = merge(dge, meta, by='ensembl_gene_id', all.x=F, all.y=F)
 corrs = list()
-disorders = c('ASD', 'SCZ', 'BD', 'MDD', 'AAD')
+disorders = c('ASD', 'SCZ', 'BD', 'MDD')
 for (d in disorders) {
     cat(d, '\n')
     corrs[[d]] = do_boot_corrs(both_res, sprintf('%s.beta_log2FC', d), met)
@@ -1376,6 +1376,143 @@ Same main code above, but change g to noMDD.
 
 Same main code above, but change g to noMDD.
 
+## Using age at death as an extra covariate
+
+### DGE
+
+Same code as main analysis, except for: 
+
+```r
+g = 'plusAge'
+fm_str = '~ RINe + C1 + BBB2 + comorbid_group + SUB2 + Age + Diagnosis'
+dds.ACC = pca_DGE_clean('ACC', fm_str, varvec, wnhOnly=F)
+dds.Caudate = pca_DGE_clean('Caudate', fm_str, varvec, wnhOnly=F)
+```
+
+and keep the change to g to export.
+
+### GSEA
+
+We don't need to re-create any of the GMT files. All we need is to change g in
+the main code.
+
+### MAGMA
+
+For MAGMA we will use the same population as the one for the main analysis:
+
+#### Generic files
+
+```r
+g = 'plusAge'
+```
+
+#### ADHD
+
+```bash
+g=plusAge;
+for r in 'ACC' 'Caudate'; do
+    magma --seed 42 --gene-results genes_ADHD_BW.genes.raw \
+        --gene-covar ../MAGMA_${g}_dge_${r}.tab \
+        --out MAGMA_${g}_gc_dge_ADHD_${r};
+done;
+```
+
+#### ASD
+
+```bash
+g=plusAge;
+for r in 'ACC' 'Caudate'; do
+    magma --seed 42 --gene-results genes_ASD_WNH.genes.raw \
+        --gene-covar ../MAGMA_${g}_dge_${r}.tab \
+        --out MAGMA_${g}_gc_dge_ASD_${r};
+done;
+```
+
+#### BD
+
+```bash
+g=plusAge;
+for r in 'ACC' 'Caudate'; do
+    magma --seed 42 --gene-results genes_BD_BW.genes.raw \
+        --gene-covar ../MAGMA_${g}_dge_${r}.tab \
+        --out MAGMA_${g}_gc_dge_BD_${r};
+done;
+```
+
+#### SCZ
+
+```bash
+g=plusAge;
+for r in 'ACC' 'Caudate'; do
+    magma --seed 42 --gene-results genes_SCZ_BW.genes.raw \
+        --gene-covar ../MAGMA_${g}_dge_${r}.tab \
+        --out MAGMA_${g}_gc_dge_SCZ_${r};
+done;
+```
+
+#### MDD
+
+```bash
+g=plusAge;
+for r in 'ACC' 'Caudate'; do
+    magma --seed 42 --gene-results genes_MDD_BW.genes.raw \
+        --gene-covar ../MAGMA_${g}_dge_${r}.tab \
+        --out MAGMA_${g}_gc_dge_MDD_${r};
+done;
+```
+
+####  OCD
+
+```bash
+g=plusAge;
+for r in 'ACC' 'Caudate'; do
+    magma --seed 42 --gene-results genes_OCD_BW.genes.raw \
+        --gene-covar ../MAGMA_${g}_dge_${r}.tab \
+        --out MAGMA_${g}_gc_dge_OCD_${r};
+done;
+```
+
+#### PTSD
+
+```bash
+g=plusAge;
+for r in 'ACC' 'Caudate'; do
+    magma --seed 42 --gene-results genes_PTSD_BW.genes.raw \
+        --gene-covar ../MAGMA_${g}_dge_${r}.tab \
+        --out MAGMA_${g}_gc_dge_PTSD_${r};
+done;
+```
+
+#### Tourette
+
+```bash
+g=plusAge;
+for r in 'ACC' 'Caudate'; do
+    magma --seed 42 --gene-results genes_TS_WNH.genes.raw \
+        --gene-covar ../MAGMA_${g}_dge_${r}.tab \
+        --out MAGMA_${g}_gc_dge_TS_${r};
+done;
+```
+
+#### Alcohol Use Disorder
+
+```bash
+g=plusAge;
+for r in 'ACC' 'Caudate'; do
+    magma --seed 42 --gene-results genes_AUD_WNH.genes.raw \
+        --gene-covar ../MAGMA_${g}_dge_${r}.tab \
+        --out MAGMA_${g}_gc_dge_AUD_${r};
+done;
+```
+
+#### Collecting results
+
+Same main code above, but change g to lessCov.
+
+### Disorder correlation
+
+Same main code above, but change g to lessCov.
+
 
 ## Leave-one-out
 
@@ -1427,44 +1564,32 @@ load(sprintf('%s/main_DGE.RData', mydir))
 for (r in c('ACC', 'Caudate')) {
     fname = sprintf('%s/DGE_%s_main_annot.csv', mydir, r)
     res = read.csv(fname)
-    top_genes = res[round(res$padj.FDR, 2) <= .05, 'GENEID']
-    hgnc = res[round(res$padj.FDR, 2) <= .05, 'hgnc_symbol']
-    all_res = data.frame(GENEID=top_genes, HUGOID=hgnc, ES=0,
-                         rank=1:length(top_genes), p_boot=0, q_boot=0)
-
-    # following this: https://www.biostars.org/p/140976/ for standardized ES
-    res = res[round(res$padj.FDR, 2) <= .05, ]
-    all_res$ES = res$log2FoldChange
-    res_str = sprintf('dds = dds.%s', r)
-    eval(parse(text=res_str))
-    tmp = data.frame(dispersion=mcols(dds)$dispGeneEst)
-    tmp$GENEID = substring(rownames(mcols(dds)), 1, 15)
-    res2 = merge(res, tmp, by='GENEID', sort=F)
-    res2$stdES = res2$log2FoldChange / sqrt(1/res2$baseMean + res2$dispersion)
-    all_res$stdES = res2$stdES
+    idx = round(res$padj.FDR, 2) <= .05
+    all_res = data.frame(GENEID=res[idx, 'GENEID'],
+                         HUGOID=res[idx, 'hgnc_symbol'],
+                         log2FoldChange = res[idx, 'log2FoldChange'],
+                         lfcSE = res[idx, 'lfcSE'],
+                         rank=1:sum(idx, na.rm=T), p_boot=0, q_boot=0)
 
     # using this for CIs: https://support.bioconductor.org/p/80725/
-    res2$lCI = res2$log2FoldChange + qnorm(.025)*res2$lfcSE
-    res2$uCI = res2$log2FoldChange + qnorm(.975)*res2$lfcSE
-    all_res$lCI = res2$lCI
-    all_res$uCI = res2$uCI
+    all_res$lCI = all_res$log2FoldChange + qnorm(.025)*all_res$lfcSE
+    all_res$uCI = all_res$log2FoldChange + qnorm(.975)*all_res$lfcSE
 
-    all_res = all_res[order(all_res$GENEID), ]
-
+    all_res = all_res[order(all_res$GENEID),]
     # collecting leave-one-out results
     boot_files = list.files(path=sprintf('%s/LOO/', mydir),
                             pattern=sprintf('^DGE_%s_main_annot_loo', r))
-    boot_ranks = matrix(nrow=length(top_genes), ncol=length(boot_files))
+    boot_ranks = matrix(nrow=nrow(all_res), ncol=length(boot_files))
     for (f in 1:length(boot_files)) {
         fname = sprintf('%s/LOO/%s', mydir, boot_files[f])
         res = read.csv(fname)
-        for (g in 1:length(top_genes)) {
-            idx = res$GENEID == top_genes[g]
+        for (g in 1:nrow(all_res)) {
+            idx = res$GENEID == all_res$GENEID[g]
             if (any(idx)) {
                 boot_ranks[g, f] = which(idx)
             }
         }        
-        res = res[res$GENEID %in% top_genes, ]
+        res = res[res$GENEID %in% all_res$GENEID, ]
         res = res[order(res$GENEID),]
         if (all(all_res$GENEID == res$GENEID)) {
             idx = which(round(res$pvalue, 2) <= .05)
@@ -1485,15 +1610,15 @@ for (r in c('ACC', 'Caudate')) {
                                                    all_res[i, 'q_boot'],
                                                    length(boot_files))
         all_res[i, 'Effect size (95%% CI)'] = sprintf('%.2f (%.2f; %.2f)',
-                                                     all_res[i, 'ES'],
+                                                     all_res[i, 'log2FoldChange'],
                                                      all_res[i, 'lCI'],
                                                      all_res[i, 'uCI'])
     }
 
-    colnames(all_res)[c(4, 10)] = c('Rank', 'Median LOO Rank')
+    colnames(all_res)[c(5, 10)] = c('Rank', 'Median LOO Rank')
     all_res = all_res[order(all_res$Rank), ]
     out_fname = sprintf('%s/DGE_%s_main_LOO.csv', mydir, r)
-    write.csv(all_res[, c(1, 2, 4, 10:13)], file=out_fname, row.names=F, quote=F)
+    write.csv(all_res[, c(1, 2, 5, 10:13)], file=out_fname, row.names=F, quote=F)
     print(all_res)
 }
 ```
@@ -1632,6 +1757,128 @@ writeData(wb, sheet=sname, res, rowNames=F)
 addStyle(wb, sheet = sname, sHeader, rows=1, cols=1:ncol(res))
 out_fname = sprintf('%s/eFile_glossary.xlsx', res_dir)
 saveWorkbook(wb, file=out_fname)
+```
+
+# Table 1
+
+Some numbers for table 1. 
+
+```r
+load('~/data/post_mortem_adhd/results/main_DGE.RData')
+library(DESeq2)
+df.acc = colData(dds.ACC)
+df.cau = colData(dds.Caudate)
+
+df.acc$age = df.acc$Age * attr(df.acc$Age, 'scaled:scale') + attr(df.acc$Age, 'scaled:center')
+df.cau$age = df.cau$Age * attr(df.cau$Age, 'scaled:scale') + attr(df.cau$Age, 'scaled:center')
+df.acc$pmi = df.acc$PMI * attr(df.acc$PMI, 'scaled:scale') + attr(df.acc$PMI, 'scaled:center')
+df.cau$pmi = df.cau$PMI * attr(df.cau$PMI, 'scaled:scale') + attr(df.cau$PMI, 'scaled:center')
+df = rbind(df.acc, df.cau)
+df = df[!duplicated(df$hbcc_brain_id), ]
+
+cat('== Age ==\n')
+idx = df$Diagnosis == 'Case'
+print(sprintf('%d / %d', sum(idx), sum(!idx)))
+print(sprintf('%.1f (%.1f; %.1f to %.1f)', mean(df[idx, 'age']),
+                                          sd(df[idx, 'age']),
+                                          min(df[idx, 'age']),
+                                          max(df[idx, 'age'])))
+print(sprintf('%.1f (%.1f; %.1f to %.1f)', mean(df[!idx, 'age']),
+                                          sd(df[!idx, 'age']),
+                                          min(df[!idx, 'age']),
+                                          max(df[!idx, 'age'])))
+print(wilcox.test(df[, 'age'] ~ df[, 'Diagnosis']))
+
+cat('== Sex ==\n')
+a = table(df$Sex, df$Diagnosis)
+print(sprintf('%d (%.1f%%)', a['M', 'Case'], 100*a['M', 'Case']/sum(idx)))
+print(sprintf('%d (%.1f%%)', a['M', 'Control'],
+              100*a['M', 'Control']/sum(!idx)))
+print(chisq.test(a))
+
+cat('== Race / Ethnicity ==\n')
+a = table(df$POP_BIN, df$Diagnosis)
+print(sprintf('%d (%.1f%%)', a['WNH', 'Case'], 100*a['WNH', 'Case']/sum(idx)))
+print(sprintf('%d (%.1f%%)', a['WNH', 'Control'],
+              100*a['WNH', 'Control']/sum(!idx)))
+print(chisq.test(a))
+print(sprintf('%d (%.1f%%)', a['other', 'Case'],
+              100*a['other', 'Case']/sum(idx)))
+print(sprintf('%d (%.1f%%)', a['other', 'Control'], 
+              100*a['other', 'Control']/sum(!idx)))
+
+cat('== Evidence level ==\n')
+a = table(df$evidence_level, df$Diagnosis)
+print(sprintf('%d (%.1f%%)', a['confirmed', 'Case'], 
+              100*a['confirmed', 'Case']/sum(idx)))
+print(sprintf('%d (%.1f%%)', a['confirmed', 'Control'], 
+              100*a['confirmed', 'Control']/sum(!idx)))
+print(sprintf('%d (%.1f%%)', a['investigator_impression', 'Case'],
+              100*a['investigator_impression', 'Case']/sum(idx)))
+print(sprintf('%d (%.1f%%)', a['investigator_impression', 'Control'],
+              100*a['investigator_impression', 'Control']/sum(!idx)))
+print(chisq.test(a))
+
+cat('== Substance abuse ==\n')
+a = table(df$SUB2, df$Diagnosis)
+print(sprintf('%d (%.1f%%)', a['no', 'Case'], 
+              100*a['no', 'Case']/sum(idx)))
+print(sprintf('%d (%.1f%%)', a['no', 'Control'], 
+              100*a['no', 'Control']/sum(!idx)))
+print(sprintf('%d (%.1f%%)', a['yes', 'Case'],
+              100*a['yes', 'Case']/sum(idx)))
+
+cat('== Manner of death ==\n')
+library(stats)
+a = table(df$MoD, df$Diagnosis)
+fisher.test(a)
+print(a)
+print(a[,1] / sum(df$Diagnosis=='Control'))
+print(a[,2] / sum(df$Diagnosis=='Case'))
+
+cat('== Post-mortem interval ==\n')
+print(sprintf('%.1f (%.1f; %.1f to %.1f)', mean(df[idx, 'pmi']),
+                                          sd(df[idx, 'pmi']),
+                                          min(df[idx, 'pmi']),
+                                          max(df[idx, 'pmi'])))
+print(sprintf('%.1f (%.1f; %.1f to %.1f)', mean(df[!idx, 'pmi']),
+                                          sd(df[!idx, 'pmi']),
+                                          min(df[!idx, 'pmi']),
+                                          max(df[!idx, 'pmi'])))
+print(wilcox.test(df[, 'pmi'] ~ df[, 'Diagnosis']))
+
+cat('== Comorbidities ==\n')
+print(sum(grepl(x=df[idx, 'comorbid_update'], pattern='MDD')))
+print(sum(grepl(x=df[idx, 'comorbid_update'], pattern='GAD')))
+print(sum(grepl(x=df[idx, 'comorbid_update'], pattern='just')))
+print(sum(grepl(x=df[idx, 'comorbid_update'], pattern='BPAD')))
+print(sum(grepl(x=df[idx, 'comorbid_update'], pattern='ASD')))
+print(df[!idx, 'comorbid_update'])
+
+# RINe needs to be per region
+df.acc$rin = df.acc$RINe * attr(df.acc$RINe, 'scaled:scale') + attr(df.acc$RINe, 'scaled:center')
+idx = df.acc$Diagnosis == 'Case'
+print(sprintf('%.1f (%.1f; %.1f to %.1f)', mean(df.acc[idx, 'rin']),
+                                          sd(df.acc[idx, 'rin']),
+                                          min(df.acc[idx, 'rin']),
+                                          max(df.acc[idx, 'rin'])))
+print(sprintf('%.1f (%.1f; %.1f to %.1f)', mean(df.acc[!idx, 'rin']),
+                                          sd(df.acc[!idx, 'rin']),
+                                          min(df.acc[!idx, 'rin']),
+                                          max(df.acc[!idx, 'rin'])))
+print(wilcox.test(df.acc[, 'rin'] ~ df.acc[, 'Diagnosis']))
+
+df.cau$rin = df.cau$RINe * attr(df.cau$RINe, 'scaled:scale') + attr(df.cau$RINe, 'scaled:center')
+idx = df.cau$Diagnosis == 'Case'
+print(sprintf('%.1f (%.1f; %.1f to %.1f)', mean(df.cau[idx, 'rin']),
+                                          sd(df.cau[idx, 'rin']),
+                                          min(df.cau[idx, 'rin']),
+                                          max(df.cau[idx, 'rin'])))
+print(sprintf('%.1f (%.1f; %.1f to %.1f)', mean(df.cau[!idx, 'rin']),
+                                          sd(df.cau[!idx, 'rin']),
+                                          min(df.cau[!idx, 'rin']),
+                                          max(df.cau[!idx, 'rin'])))
+print(wilcox.test(df.cau[, 'rin'] ~ df.cau[, 'Diagnosis']))
 ```
 
 # Figures
@@ -2043,7 +2290,46 @@ dev.off()
 
 ## Figure 4
 
-### Correlation to other disorders
+We start by spitting out the correlation values. We compute the pvalues as the
+intersection of the null distributions with the bootstrap distributions.
+
+```r
+mydir = '~/data/post_mortem_adhd/results/'
+
+get_corr_stats = function(g, r, verbose=T) {
+    corrs = readRDS(sprintf('%s/disorders_corrs_%s.rds', mydir, g))
+    mycorrs = corrs[corrs$region == r, ]
+    null.corrs = readRDS(sprintf('%s/disorders_corrs_null_%s.rds', mydir, g))
+    null.mycorrs = null.corrs[null.corrs$region == r, ]
+    all_res = c()
+    for (d in unique(mycorrs[,'disorder'])) {
+        dnull = null.mycorrs[null.mycorrs$disorder==d, 'corr']
+        dcorr = mycorrs[mycorrs$disorder==d, 'corr']
+        if (mean(dcorr) > 0) {
+            pval = sum(min(dcorr) <= dnull)/length(dnull)
+        } else {
+            pval = sum(max(dcorr) >= dnull)/length(dnull)
+        }
+        res = c(median(dcorr), sd(dcorr), pval, min(dcorr),
+                    max(dcorr), quantile(dnull, c(.025, .975)),
+                    quantile(dcorr, c(.025, .975)))
+        if (verbose) {
+            cat(r, d, sprintf('%.3f (%.3f, %.3f) (pval=%.4f, min = %.3f, max = %.3f)\n',
+                           res[1], res[8], res[9], res[3], res[4], res[5]))
+        }
+        all_res = rbind(all_res, res)
+    }
+    all_res = as.data.frame(all_res)
+    colnames(all_res) = c('rho', 'sd', 'pval', 'min', 'max', 'nullp025',
+                      'nullp975', 'p025', 'p975')
+    all_res$disorder = unique(mycorrs[,'disorder'])
+    return(all_res)
+}
+res.acc = get_corr_stats('main', 'ACC', verbose=T)
+res.cau = get_corr_stats('main', 'Caudate', verbose=T)
+```
+
+Now we make the figure splitting by study:
 
 ```r
 library(ggplot2)
@@ -2053,22 +2339,21 @@ corrs = readRDS('~/data/post_mortem_adhd/results/disorders_corrs_main.rds')
 sources = unique(corrs$source)
 
 # this leveling only affects the color ordering
-dis_order = c('ASD', 'SCZ', 'BD', 'MDD', 'AAD', 'OCD')
+dis_order = c('ASD', 'SCZ', 'BD', 'MDD', 'OCD')
 col_labels = c('Autism Spectrum Disorder', 'Schizophrenia', 'Bipolar Disorder',
-               'Major Depression Disorder', 'Alcohol Abuse or Dependence',
-               'Obsessive Compulsive Disorder')
+               'Major Depression Disorder', 'Obsessive Compulsive Disorder')
 corrs$Disorders = factor(corrs$disorder,
                         levels=dis_order)
 
 # just to share axis
 ymax = .6
-ymin = -.2
+ymin = -.1
 leg_size = 9
 cap_size = 10
 tick_size = 9
 title_size = 11
 # Bang Wong's color pallete
-my_colors = c('#000000', '#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2')
+my_colors = c('#000000', '#E69F00', '#56B4E9', '#009E73', '#F0E442')
 
 r = 'ACC' 
 mycorrs = corrs[corrs$region == r, ]
@@ -2093,7 +2378,7 @@ p1 = ggplot(mycorrs, aes(x = xorder, y = corr, fill=Disorders)) +
     # fake continuous axis to add vertical lines later
     geom_line(aes(x = as.numeric(xorder), y=0), size = 1, color="#dc3220", alpha=0) + 
     # vertical lines separating disorders
-    geom_vline(xintercept=c(4.5, 7.5, 10.5, 12.5),
+    geom_vline(xintercept=c(4.5, 7.5, 10.5),
                linetype="dashed", color = "grey", size=1) +
     theme(axis.text.x = element_text(angle = 90, hjust=1, vjust=0.5, size=tick_size),
           axis.title.y = element_blank(),
@@ -2109,6 +2394,7 @@ p1 = ggplot(mycorrs, aes(x = xorder, y = corr, fill=Disorders)) +
                      values = my_colors,
                      labels = col_labels,
                      drop=FALSE)
+ 
 
 r = 'Caudate'
 mycorrs = corrs[corrs$region == r, ]
@@ -2133,7 +2419,7 @@ p2 = ggplot(mycorrs, aes(x = xorder, y = corr, fill=Disorders)) +
     # fake continuous axis to add vertical lines later
     geom_line(aes(x = as.numeric(xorder), y=0), size = 1, color="#dc3220", alpha=0) + 
     # vertical lines separating disorders
-    geom_vline(xintercept=c(2.5, 5.5, 8.5, 9.5, 10.5),
+    geom_vline(xintercept=c(2.5, 5.5, 8.5, 9.5),
                linetype="dashed", color = "grey", size=1) +
     theme(axis.text.x = element_text(angle = 90, hjust=1, vjust=0.5, size=tick_size),
           axis.title.y = element_blank(),
@@ -2157,7 +2443,7 @@ p3 = annotate_figure(p, left = text_grob("Transcriptome correlation (rho)",
                                          rot = 90, size=cap_size))
 ```
 
-### MAGMA results
+And the MAGMA panel:
 
 ```r
 library(corrplot)
@@ -2174,22 +2460,24 @@ for (i in 1:nrow(res)) {
     plot_mat[res[i, 'REGION'], res[i, 'DISORDER']] = -log10(res[i, 'P'])
     pvals[res[i, 'REGION'], res[i, 'DISORDER']] = res[i, 'P']
 }
+
 quartz()
+par(xpd=TRUE)
 corrplot(plot_mat, is.corr=F, tl.col='black', p.mat = pvals,
          sig.level = .05, col.lim=c(0,8.5), cl.length=2,
          cl.align.text='l', cl.offset=.2, tl.cex = .8,
          col=colorRampPalette(c("white","#005AB5"))(200),
          mar = c(.5, .5, 1, 0))
-text(x=9.15, y=1.5, label=bquote(~-log[10]~italic((p))), srt=270)
+text(x=9.4, y=1.5, label=bquote(~-log[10]~italic((p))), srt=270)
 magma = recordPlot()
 
-# adding some fake margin
-library(cowplot)
-fig4 = plot_grid(p3, magma, rel_heights = c(2.5, 1),
-                 labels = c('A', 'B'), ncol=1) 
-ggsave("~/data/post_mortem_adhd/figures/figure4.pdf", fig4, width=7.5, height=7.75,
-       units="in")
+fig = ggarrange(p3, magma, common.legend = F, nrow=2, ncol=1,
+                labels='AUTO', heights=c(2, 1)) 
+ggsave("~/data/post_mortem_adhd/figures/figure4.pdf", fig, width=7.5, height=8,
+        units="in")
+
 ```
+
 
 # Supplemental figures
 
@@ -2338,18 +2626,23 @@ p3 = ggplot(aes(x=PC2, y=PC3, fill=BBB2, colour=outlier), data=plot_df)+
       geom_point(size = 3, shape = 21, stroke = .5) +
       labs(y = sprintf('PC3 (%.2f%%)', var_explained_df[3, 'var_explained']),
            x = sprintf('PC2 (%.2f%%)', var_explained_df[2, 'var_explained']),
-           color = 'Brain bank / batch') +
+           fill = 'Brain bank / batch') +
       theme(legend.position="bottom") +
       scale_fill_manual(values=c('#0C7BDC', "#F0E442", "#009E73")) + 
       scale_color_manual(values=c('no'='black', 'yes'="red"), guide='none')
 ```
 
-### Variance partition plot
+### Variance explained
 
-Let's focus on the clean data here, so we can show better the contribution of
-the different covariates:
+Single plot using only genes that were both in ACC and Caudate dds.
 
 ```r
+load('~/data/post_mortem_adhd/results/main_DGE.RData')
+library(DESeq2)
+library(scater)
+
+keep_genes = intersect(rownames(dds.ACC), rownames(dds.Caudate))
+
 data = read.table('~/data/post_mortem_adhd/adhd_rnaseq_counts.txt', header=1)
 rownames(data) = data[,1]
 data[,1] = NULL
@@ -2409,86 +2702,49 @@ df$POP_BIN = 'other'
 df[imWNH, 'POP_BIN'] = 'WNH'
 df$POP_BIN = factor(df$POP_BIN)  
 
-# removing non-autosome genes
-library(GenomicFeatures)
-txdb <- loadDb('~/data/post_mortem_adhd/Homo_sapies.GRCh38.97.sqlite')
-txdf <- select(txdb, keys(txdb, "GENEID"), columns=c('GENEID','TXCHROM'),
-            "GENEID")
-bt = read.csv('~/data/post_mortem_adhd/Homo_sapiens.GRCh38.97_biotypes.csv')
-bt_slim = bt[, c('gene_id', 'gene_biotype')]
-bt_slim = bt_slim[!duplicated(bt_slim),]
-txdf = merge(txdf, bt_slim, by.x='GENEID', by.y='gene_id')
-tx_meta = data.frame(GENEID = substr(rownames(data), 1, 15))
-tx_meta = merge(tx_meta, txdf, by='GENEID', sort=F)
-imautosome = which(tx_meta$TXCHROM != 'X' &
-                tx_meta$TXCHROM != 'Y' &
-                tx_meta$TXCHROM != 'MT')
-data = data[imautosome, ]
-tx_meta = tx_meta[imautosome, ]
-
-# remove constant genes (including zeros) as it breaks PCA
-const_genes = apply(data, 1, sd) == 0
-data = data[!const_genes, ]
-
-library("DESeq2")
-# making sure any numeric covariates are scaled
-num_vars = c('pcnt_optical_duplicates', 'clusters', 'Age', 'RINe', 'PMI',
-        'C1', 'C2', 'C3', 'C4', 'C5')
-for (var in num_vars) {
-    df[, var] = scale(df[, var])
-}
+data = data[rownames(data) %in% keep_genes, ]
 
 # creating DESeq2 object
-fm_str = '~ RINe + C1 + BBB2 + comorbid_group + SUB2 + Diagnosis'
+fm_str = '~ 1'
 dds <- DESeqDataSetFromMatrix(countData = data,
-                                colData = df,
-                                design = as.formula(fm_str))
-# remove genes based on how many subjects have zero counts
-# the minimum number of subjects with zero counts in a gene for the gene
-# to be kept corresponds to the smallest group size (number of Cases)
-min_subjs = min(table(df$Diagnosis))
-keep <- rowSums(counts(dds) == 0) <= min_subjs
-dds <- dds[keep,]
+                              colData = df,
+                              design = as.formula(fm_str))
+dds <- estimateSizeFactors(dds)
+vsd <- vst(dds, blind=FALSE)
+norm.cts <- assay(vsd)
 
-# remove genes based on filterByExpr()
-library(edgeR)
-design = model.matrix(as.formula(fm_str), data=colData(dds))
-isexpr <- filterByExpr(counts(dds), design=design)
-ddsExpr = dds[isexpr, ]
+myvars = c('C1', 'C2', 'C3', 'C4', 'C5', 'Age', 'RINe', 'BBB2',
+            'comorbid_group', 'SUB2', 'Diagnosis', 'PMI', 'MoD', 'Sex',
+            'evidence_level', 'Region')
+df.clean = df[, myvars]
+colnames(df.clean) = c("C1", "C2", "C3", "C4", "C5", "Age", "RINe",
+                     "Brain bank / batch", "Comorbidities", "Substance abuse",
+                     "Diagnosis", "Post-mortem interval", "Manner of death",
+                     "Sex", "Evidence level", 'Tissue')
+ve = getVarianceExplained(norm.cts, df.clean)
+p = plotExplanatoryVariables(ve, nvars_to_plot=8)
 
-# variancePartition plot
-library(variancePartition)
-vsd <- vst(ddsExpr, blind=FALSE) 
-norm.cts <- assay(vsd) 
-myvar = apply(norm.cts, 1, sd)
-
-form <- ~ (C1 + C2 + C3 + C4 + C5 + Age + RINe + (1|BBB2) + (1|comorbid_group) +
-           (1|SUB2) + (1|Diagnosis) + PMI + (1|MoD) + (1|Sex) +
-           (1|evidence_level) + (1|Region))
-# remove genes with zero variance
-norm.cts.var = norm.cts[myvar>0,]
-# varPart <- fitExtractVarPartModel(norm.cts.var, form, df)
-# ran it in the cluster
-load('~/tmp/varpart.rdata')
-colnames(varPart) = c("Brain bank / batch", "Comorbidities", "Diagnosis", 
-                      "Evidence level", "Mode of death", "Brain region", "Sex",
-                      "Substance abuse", "C1", "C2", "C3", "C4", "C5", "Age",
-                      "RINe", "Post-mortem interval", "Residuals")
-vp <- sortCols( varPart )
-fig = plotVarPart( vp )
+fig_mod = p + scale_color_manual(values=c('Tissue' = '#000000',
+                                'Brain bank / batch' = '#E69F00',
+                                'RINe' = '#56B4E9',
+                                'Manner of death' = '#009E73',
+                                'Post-mortem interval' = '#F0E442',
+                                'Evidence level' = '#0072B2',
+                                'C3' = '#D55E00',
+                                'Age' = '#CC79A7'), name=NULL) +
+            theme(plot.margin=unit(c(t=.5, r=.5, b=2, l=0.5), "cm"),
+                  legend.position=c(-.05, -.375),
+                  legend.margin = margin(0, 0, 0, 0)) +
+            guides(col = guide_legend(nrow = 4))                    
 ```
 
 Combining all plots:
 
 ```r
-fig_mod = fig + theme(axis.text.x = element_text(size = 9, angle = 55),
-                      axis.title.y = element_text(size = 9),
-                      axis.text.y = element_text(size = 8),
-                      plot.margin = margin(l=7, b=0, r=7, t=15))
-p = ggarrange(fig_mod, p1, p2, p3, common.legend=F, ncol=2, nrow=2,
+sfig = ggarrange(fig_mod, p1, p2, p3, common.legend=F, ncol=2, nrow=2,
               labels='AUTO')
 
-ggsave("~/data/post_mortem_adhd/figures/sfigure3.pdf", p, width=6.5, height=6,
+ggsave("~/data/post_mortem_adhd/figures/sfigure3.pdf", sfig, width=6.5, height=6.5,
        units="in")
 ```
 
@@ -2594,24 +2850,31 @@ get_data_and_df = function(myregion = NA) {
     return(res)
 }
 
-m = get_data_and_df(NA)
+m.all = get_data_and_df(NA)
 
-# run nonparametric t-tests for numeric variables
+# run nonparametric t-tests for numeric variables (all but RINe are non-normal
+# based on Shapiro-Wilk's normality test) 
 num_vars = c('Age', 'PMI', 'C1', 'C2', 'C3', 'C4', 'C5', 'RINe')
 mypvals = c()
 mystats = c()
 for (x in num_vars) {
-    res = wilcox.test(as.formula(sprintf('%s ~ Diagnosis', x)), data=m$df)
+    res = wilcox.test(as.formula(sprintf('%s ~ Diagnosis', x)), data=m.all$df)
     mypvals = c(mypvals, res$p.value)
     mystats = c(mystats, res$statistic)
 }
 
-categ_vars = c('MoD', 'SUB2', 'comorbid_group', 'Sex', 'evidence_level', 'BBB2')
+categ_vars = c('SUB2', 'comorbid_group', 'Sex', 'evidence_level', 'BBB2')
 for (x in categ_vars) {
-    res = chisq.test(table(m$df$Diagnosis, m$df[, x]))
+    res = chisq.test(table(m.all$df$Diagnosis, m.all$df[, x]))
     mypvals = c(mypvals, res$p.value)
     mystats = c(mystats, res$statistic)
 }
+# mode of death needs exact test because of too few observations in one cell
+x = 'MoD'
+res = fisher.test(table(m.all$df$Diagnosis, m.all$df[, x]))
+mypvals = c(mypvals, res$p.value)
+mystats = c(mystats, 1) # we just need the sign
+categ_vars = c(categ_vars, x)
 
 myvars = c(num_vars, categ_vars)
 DX_pvals = mypvals
@@ -2668,10 +2931,10 @@ get_correlations = function(data, df) {
     return(res)
 }
 
-m = get_data_and_df('ACC')
-ACC_res = get_correlations(m$data, m$df)
-m = get_data_and_df('Caudate')
-Caudate_res = get_correlations(m$data, m$df)
+m.acc = get_data_and_df('ACC')
+ACC_res = get_correlations(m.acc$data, m.acc$df)
+m.cau = get_data_and_df('Caudate')
+Caudate_res = get_correlations(m.cau$data, m.cau$df)
 ```
 
 Now, let's work on plotting them. Scree first:
@@ -2728,8 +2991,9 @@ plot_df2 = rbind(plot_df, junk[, match(colnames(plot_df), colnames(junk))])
 rownames(plot_df2)[nrow(plot_df2)] = 'Diagnosis'
 mylim = max(abs(plot_df2))
 
-colnames(plot_df2) = c("Mode of death", "Substance abuse", "Comorbidities",
-                       "Sex", "Evidence level", "Brain bank / batch", "Age",
+colnames(plot_df2) = c("Substance abuse", "Comorbidities", "Sex",
+                       "Evidence level", "Brain bank / batch", "Mode of death",
+                       "Age",
                        "Post-mortem interval", "C1", "C2", "C3", "C4", "C5",
                        "RINe")
 
@@ -2751,10 +3015,9 @@ corrplot(plot_df2, is.corr=F, col.lim=c(-mylim, mylim), tl.col='black',
          tl.cex=.8, cl.cex=.8, cl.align.text = 'l', cl.offset=.25,
          mar=c(1,0,3.5,0),
          col=colorRampPalette(c("#dc3220", "white","#005AB5"))(200))
-text(x=18.5, y=9, label=bquote(~-log[10]~italic((p))), srt=-270)
 width = 1
 ybottom = 16.65
-xpos = c(1.5, 2.5, 5.5, 8.5, 13.5)
+xpos = c(.5, 1.5, 4.5, 8.5, 13.5)
 ytop = c(6.3, 5.1, 6.6, 1.1, 2)
 rect(xpos, ybottom, xpos+width, ybottom+ytop, border='#dc3220', lty='dashed', lwd=1.5)
 corrs = recordPlot()
@@ -3312,7 +3575,7 @@ g2_title = 'White non-Hispanic'
 
 # just to share axis
 ymax = .5
-ymin = -.15
+ymin = -.05
 leg_size = 9
 cap_size = 10
 tick_size = 9
@@ -3323,13 +3586,13 @@ r = 'ACC'
 corrs = readRDS(sprintf('~/data/post_mortem_adhd/results/disorders_corrs_%s.rds',
                         g1))
 sources = unique(corrs$source)
-dis_order = c('ASD', 'SCZ', 'BD', 'MDD', 'AAD', 'OCD')
-col_labels = c('Autism Spectrum Disorder', 'Schizophrenia', 'Bipolar Disorder',
-               'Major Depression Disorder', 'Alcohol Abuse or Dependence',
-               'Obsessive Compulsive Disorder')
+dis_order = c('ASD', 'SCZ', 'BD', 'MDD', 'OCD')
+col_labels = c('Autism Spectrum Disorder (ASD)', 'Schizophrenia (SCZ)',
+                'Bipolar Disorder (BD)',
+               'Major Depression Disorder (MDD)', 'Obsessive Compulsive Disorder (OCD)')
 corrs$Disorders = factor(corrs$disorder, levels=dis_order)
 # Bang Wong's color pallete
-my_colors = c('#000000', '#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2')
+my_colors = c('#000000', '#E69F00', '#56B4E9', '#009E73', '#F0E442')
 mycorrs = corrs[corrs$region == r, ]
 mycorrs$id = sapply(1:nrow(mycorrs),
                   function(i) sprintf('%s [%d]',
@@ -3379,7 +3642,7 @@ all_df$xorder = factor(all_df$st, levels=mylevels)
 
 p = ggplot(all_df, aes(y=val, x=xorder, color=Disorders)) + 
         geom_pointrange(aes(ymin=val-2*err, ymax=val+2*err, shape=Groups),
-                        size=1) +
+                        size=1, position=position_dodge(.5)) +
         ylim(ymin, ymax) + 
         geom_hline(yintercept=0, linetype="dotted",
                     color = "#dc3220", size=1) +
@@ -3389,7 +3652,7 @@ p = ggplot(all_df, aes(y=val, x=xorder, color=Disorders)) +
         # vertical lines separating disorders
         geom_vline(xintercept=c(4.5, 7.5, 10.5, 12.5),
                     linetype="dashed", color = "grey", size=1)
-p1 = p + theme(axis.text.x = element_text(angle = 90, hjust=1, vjust=0.5, size=tick_size),
+p1.ind = p + theme(axis.text.x = element_text(angle = 90, hjust=1, vjust=0.5, size=tick_size),
           axis.title.y = element_blank(),
           axis.title.x = element_blank(),
           legend.text = element_text(size=leg_size),
@@ -3458,7 +3721,7 @@ all_df$xorder = factor(all_df$st, levels=mylevels)
 
 p = ggplot(all_df, aes(y=val, x=xorder, color=Disorders)) + 
         geom_pointrange(aes(ymin=val-2*err, ymax=val+2*err, shape=Groups),
-                        size=1) + ylim(ymin, ymax) + 
+                        size=1, position=position_dodge(.5)) + ylim(ymin, ymax) + 
         geom_hline(yintercept=0, linetype="dotted",
                     color = "#dc3220", size=1) +
         # fake continuous axis to add vertical lines later
@@ -3467,7 +3730,7 @@ p = ggplot(all_df, aes(y=val, x=xorder, color=Disorders)) +
         # vertical lines separating disorders
         geom_vline(xintercept=c(2.5, 5.5, 8.5, 9.5, 10.5),
                     linetype="dashed", color = "grey", size=1)
-p2 = p + theme(axis.text.x = element_text(angle = 90, hjust=1, vjust=0.5, size=tick_size),
+p2.ind = p + theme(axis.text.x = element_text(angle = 90, hjust=1, vjust=0.5, size=tick_size),
           axis.title.y = element_blank(),
           axis.title.x = element_blank(),
           legend.text = element_text(size=leg_size),
@@ -3480,11 +3743,11 @@ p2 = p + theme(axis.text.x = element_text(angle = 90, hjust=1, vjust=0.5, size=t
                      drop=FALSE) +
     ggtitle(r)
 
-p3 = ggarrange(p1, p2, common.legend = T, legend='right', nrow=2, ncol=1,
-          legend.grob=get_legend(p2)) 
-p4 = annotate_figure(p3, left = text_grob("Transcriptome correlation (rho)",
+p3 = ggarrange(p1.ind, p2.ind, common.legend = T, legend='right', nrow=2, ncol=1) 
+p.ind = annotate_figure(p3, left = text_grob("Transcriptome correlation (rho)",
                                          rot = 90, size=cap_size))
-ggsave("~/data/post_mortem_adhd/figures/sfigure12.pdf", p4, width=7, height=7,
+
+ggsave("~/data/post_mortem_adhd/figures/sfigure12.pdf", p.ind, width=7, height=7,
        units="in")
 ```
 
@@ -3498,7 +3761,7 @@ p1 = make_corrplot('main')
 p2 = make_corrplot('lessCov') 
 sfig = plot_grid(p1, p2, rel_heights = c(1, 1), ncol=1,
                 labels=c('A. Entire cohort',
-                         'B. Fewer covariates'),
+                         'B. Not covarying comorbidity'),
                 label_x = 0, hjust=0, label_y=.9)
 ggsave("~/data/post_mortem_adhd/figures/sfigure13.pdf", sfig, width=7.5, height=9,
        units="in")
@@ -3512,11 +3775,11 @@ It's a repeat of SFig10, but using the lessCov results.
 g1 = 'main'
 g1_title = 'Entire cohort'
 g2 = 'lessCov'
-g2_title = 'Fewer covariates'
+g2_title = 'Not covarying comorbidity'
 
 # ...
 
-ggsave("~/data/post_mortem_Adhd/figures/sfigure14.pdf", p, width=7.5, height=4,
+ggsave("~/data/post_mortem_adhd/figures/sfigure14.pdf", p, width=7.5, height=4,
        units="in")
 ```
 
@@ -3530,7 +3793,7 @@ p1 = make_magma('main')
 p2 = make_magma('lessCov')
 sfig = plot_grid(p1, p2, rel_heights = c(1, 1), ncol=1,
                 labels=c('A. Entire cohort',
-                         'B. Fewer covariates'),
+                         'B. Not covarying comorbidity'),
                 label_x = 0, hjust=0, label_y=.95)
 ggsave("~/data/post_mortem_adhd/figures/sfigure15.pdf", sfig, width=7.5, height=5,
        units="in")
@@ -3544,11 +3807,11 @@ It's a repeat of SFig12, but using the lessCov results.
 g1 = 'main'
 g1_title = 'Entire Cohort'
 g2 = 'lessCov'
-g2_title = 'Fewer covariates'
+g2_title = 'Not covarying comorbidity'
 
 # ...
 
-ggsave("~/data/post_mortem_adhd/figures/sfigure16.pdf", p4, width=7, height=7,
+ggsave("~/data/post_mortem_adhd/figures/sfigure16.pdf", p.ind, width=7, height=7,
        units="in")
 ```
 
@@ -3612,6 +3875,8 @@ g2_title = 'No subjects with MDD'
 
 # ...
 
-ggsave("~/data/post_mortem_adhd/figures/sfigure20.pdf", p4, width=7, height=7,
+ggsave("~/data/post_mortem_adhd/figures/sfigure20.pdf", p.ind, width=7, height=7,
        units="in")
 ```
+
+# TODO
